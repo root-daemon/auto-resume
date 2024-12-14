@@ -12,7 +12,7 @@ import calendar
 load_dotenv()
 
 GITHUB_API_URL = "https://api.github.com/graphql"
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = os.getenv("TOKEN")
 
 LINKEDIN_API_URL = "https://li-data-scraper.p.rapidapi.com/get-profile-data-by-url"
 LINKEDIN_API_KEY = os.getenv("LINKEDIN_API_KEY")
