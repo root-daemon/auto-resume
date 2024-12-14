@@ -1,36 +1,51 @@
-name: Update Resume Weekly
+name: Update Resume
 
 on:
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: '0 0 * * 0' # Runs every Sunday at midnight UTC
+  workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  update-resume:
+  generate-pdf:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    # Step 1: Checkout the repository
+    - name: Checkout Repository
       uses: actions/checkout@v3
 
+    # Step 2: Set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.x
+        python-version: '3.10'
 
-    - name: Install dependencies
+    # Step 3: Install dependencies
+    - name: Install Dependencies
       run: |
-        pip install -r requirements.txt
+        python -m pip install --upgrade pip
+        pip install python-dotenv requests
 
-    - name: Run update script
-      run: |
-        python updater.py
-
-    - name: Commit and push changes
-      run: |
-        git config --global user.name "GitHub Actions Bot"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add .
-        git commit -m "Updated resume: $(date)"
-        git push
+    # Step 4: Run the updater script
+    - name: Run Updater Script
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        LINKEDIN_API_KEY: ${{ secrets.LINKEDIN_API_KEY }}
+        LINKEDIN_PROFILE_URL: ${{ secrets.LINKEDIN_PROFILE_URL }}
+      run: python updater.py
+
+    # Step 5: Compile LaTeX to PDF
+    - name: Compile LaTeX to PDF
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-full
+        pdflatex resume.tex -o resume.pdf
+
+    # Step 6: Commit and Push Updated PDF
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add resume.pdf
+        git commit -m "Update resume PDF (automated)"
+        git push
