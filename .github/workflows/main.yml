@@ -46,22 +46,26 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-docker-
 
-    # Step 6: Load Docker image from cache
-    - name: Load Docker image from cache
+    # Step 6: Pull Docker image if cache is not available
+    - name: Pull Docker image
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
+        docker pull danteev/texlive
         mkdir -p /tmp/.docker-cache
         docker save danteev/texlive | gzip > /tmp/.docker-cache/texlive.tar.gz
 
-    # Step 7: Compile LaTeX to PDF using Docker
+    # Step 7: Load Docker image from cache
+    - name: Load Docker image from cache
+      if: steps.cache.outputs.cache-hit == 'true'
+      run: |
+        gunzip -c /tmp/.docker-cache/texlive.tar.gz | docker load
+
+    # Step 8: Compile LaTeX to PDF using Docker
     - name: Run pdflatex in Docker
       run: |
-        if [ -f /tmp/.docker-cache/texlive.tar.gz ]; then
-          gunzip -c /tmp/.docker-cache/texlive.tar.gz | docker load
-        fi
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace danteev/texlive pdflatex resume.tex
 
-    # Step 8: Commit and Push Changes
+    # Step 9: Commit and Push Changes
     - name: Commit and Push Changes
       run: |
         git config --global user.name 'github-actions[bot]'
@@ -72,7 +76,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
 
-    # Step 9: Upload PDF and LaTeX files
+    # Step 10: Upload PDF and LaTeX files
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
