@@ -48,7 +48,7 @@ jobs:
         git commit -m 'Updated resume'
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # Step 7: Upload PDF and LaTeX files
     - name: Upload Artifacts
