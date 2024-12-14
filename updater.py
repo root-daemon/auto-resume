@@ -1,6 +1,7 @@
 # Generates a LaTeX resume from a template file and data fetched from GitHub and LinkedIn APIs
 # The generated resume is saved to a file named resume.tex
 
+import re
 import requests
 import os
 import json
@@ -23,6 +24,11 @@ OUTPUT_FILE = "resume.tex"
 GITHUB_DATA_FILE = "github_data.json"
 LINKEDIN_DATA_FILE = "linkedin_data.json"
 local = os.getenv("LOCAL")
+
+def cleanData(data: str) -> str:
+    data = re.sub(r'[^\x00-\x7F]+', '', data)
+    data = data.replace('\u0000', '')
+    return data
 
 def fetch_github_data(query: str) -> GithubResponse:
     if local and os.path.exists(GITHUB_DATA_FILE):
@@ -66,13 +72,12 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
         with open(TEMPLATE_FILE, "r") as template_file:
             template_content = template_file.read()
 
-        
         repositories = data.viewer.repositories
         repo_entries = "".join([
             f"\\item \\textbf{{\\href{{{repo.url}}}{{{repo.name}}}}}\n"
-            f"\n{next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').split('- ')[0]}\n"
+            f"\n{cleanData(next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').split('- ')[0])}\n"
             f"\\begin{{itemize}}\n"
-            + "".join([f"\\item {point.strip()}\n" for point in next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').replace("%", "\\%").split('- ')[1:]]) +
+            + "".join([f"\\item {cleanData(point.strip())}\n" for point in next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').replace("%", "\\%").split('- ')[1:]]) +
             f"\\item \\textbf{{Stars:}} {repo.stargazerCount}\n"
             f"\\end{{itemize}}\n"
             for repo in repositories[:3]
@@ -85,7 +90,9 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
 
         github_languages = ", ".join(languages) if languages else "No languages found"
 
-        final_technical_skills = f"{github_languages}"
+        languages_list = list(languages)
+        chunked_languages = [languages_list[i:i + 8] for i in range(0, len(languages_list), 8)]
+        final_technical_skills = " & & ".join([", ".join(chunk) for chunk in chunked_languages])
 
         experiences = linkedin_data.position
         certifications = linkedin_data.certifications
@@ -98,19 +105,19 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
             f"\\textbf{{{exp.title}}} \\hfill {month_number_to_abbr(exp.start.month)} {exp.start.year} - "
             f"{f'{month_number_to_abbr(exp.end.month)} {exp.end.year}' if exp.end and exp.end.year != 0 else 'Present'}\\\\\n"
             f"{exp.companyName} \\hfill \\textit{{{exp.location}}}\n"
-            f"\n{exp.description.split('- ')[0]}\n"
+            f"\n{cleanData(exp.description.split('- ')[0])}\n"
             f"\\begin{{itemize}}\n"
-            + "".join([f"\\item {point.strip()}\n" for point in exp.description.replace("%", "\\%").split('- ')[1:]]) +
+            + "".join([f"\\item {cleanData(point.strip())}\n" for point in exp.description.replace("%", "\\%").split('- ')[1:]]) +
             f"\\end{{itemize}}\n"
             for exp in experiences
         ])
 
         certification_entries = "".join([
-            f"\\item {cert.name}\n" for cert in certifications
+            f"\\item {cleanData(cert.name)}\n" for cert in certifications
         ])
         
         speaks_entries = "".join([
-            f"\\item {speak.name} ({speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native')})\n" for speak in speaks
+            f"\\item {cleanData(speak.name)} ({cleanData(speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native'))})\n" for speak in speaks
         ])
 
         updated_content = template_content.replace("<REPOSITORIES>", repo_entries)
@@ -118,10 +125,10 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
         updated_content = updated_content.replace("<CERTIFICATIONS>", certification_entries)
         updated_content = updated_content.replace("<GITHUB_LANGS>", final_technical_skills)
         updated_content = updated_content.replace("<SPEAKS>", speaks_entries)
-        updated_content = updated_content.replace("<SUMMARY>", linkedin_data.summary)
+        updated_content = updated_content.replace("<SUMMARY>", cleanData(linkedin_data.summary))
 
         with open(OUTPUT_FILE, "w") as output_file:
-            output_file.write(updated_content)
+            output_file.write(cleanData(updated_content))
 
         print(f"LaTeX file updated: {OUTPUT_FILE}")
     except Exception as e:
