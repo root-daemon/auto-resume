@@ -38,8 +38,12 @@ jobs:
     - name: Run pdflatex in Docker
       run: |
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace danteev/texlive pdflatex resume.tex
-    - name: Upload PDF
+
+    # Step 6: Upload PDF and LaTeX files
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
         name: resume
-        path: resume.pdf
+        path: |
+          resume.pdf
+          resume.tex
