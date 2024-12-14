@@ -88,11 +88,7 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
             for language in repo.languages:
                 languages.add(language.name)
 
-        github_languages = ", ".join(languages) if languages else "No languages found"
-
-        languages_list = list(languages)
-        chunked_languages = [languages_list[i:i + 8] for i in range(0, len(languages_list), 8)]
-        final_technical_skills = " & & ".join([", ".join(chunk) for chunk in chunked_languages])
+        github_languages = ", ".join(languages) if languages else ""
 
         experiences = linkedin_data.position
         certifications = linkedin_data.certifications
@@ -102,13 +98,14 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
             return calendar.month_abbr[month_number]
 
         experience_entries = "".join([
-            f"\\textbf{{{exp.title}}} \\hfill {month_number_to_abbr(exp.start.month)} {exp.start.year} - "
+            f"\\textbf{{{cleanData(exp.title)}}} \\hfill {month_number_to_abbr(exp.start.month)} {exp.start.year} - "
             f"{f'{month_number_to_abbr(exp.end.month)} {exp.end.year}' if exp.end and exp.end.year != 0 else 'Present'}\\\\\n"
-            f"{exp.companyName} \\hfill \\textit{{{exp.location}}}\n"
-            f"\n{cleanData(exp.description.split('- ')[0])}\n"
-            f"\\begin{{itemize}}\n"
-            + "".join([f"\\item {cleanData(point.strip())}\n" for point in exp.description.replace("%", "\\%").split('- ')[1:]]) +
-            f"\\end{{itemize}}\n"
+            f"{cleanData(exp.companyName)} \\hfill \\textit{{{cleanData(exp.location)}}}\n"
+            + (f"\n{cleanData(exp.description.split('- ')[0])}\n"
+               f"\\begin{{itemize}}\n"
+               + "".join([f"\\item {cleanData(point.strip())}\n" for point in exp.description.replace("%", "\\%").split('- ')[1:]]) +
+               f"\\end{{itemize}}\n"
+               if "- " in exp.description else f"\n{cleanData(exp.description)}\n\n")
             for exp in experiences
         ])
 
@@ -123,7 +120,7 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
         updated_content = template_content.replace("<REPOSITORIES>", repo_entries)
         updated_content = updated_content.replace("<EXPERIENCES>", experience_entries)
         updated_content = updated_content.replace("<CERTIFICATIONS>", certification_entries)
-        updated_content = updated_content.replace("<GITHUB_LANGS>", final_technical_skills)
+        updated_content = updated_content.replace("<GITHUB_LANGS>", github_languages)
         updated_content = updated_content.replace("<SPEAKS>", speaks_entries)
         updated_content = updated_content.replace("<SUMMARY>", cleanData(linkedin_data.summary))
 
