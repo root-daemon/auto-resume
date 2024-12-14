@@ -13,6 +13,20 @@ jobs:
     # Step 1: Checkout the repository
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with: 
+        token: ${{ secrets.PUSH_TOKEN }}
+    
+    - name: Validate Push Permissions
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        touch .permission_check
+        git add .permission_check
+        git commit -m 'Permission check'
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
+      continue-on-error: false
 
     # Step 2: Set up Python
     - name: Set up Python
@@ -48,7 +62,7 @@ jobs:
         git commit -m 'Updated resume'
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
 
     # Step 7: Upload PDF and LaTeX files
     - name: Upload Artifacts
