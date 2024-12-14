@@ -20,6 +20,9 @@ class Repository(BaseModel):
 class Viewer(BaseModel):
     login: str
     name: str
+    location: Optional[str] = None
+    websiteUrl: Optional[str] = None
+    email: Optional[str] = None
     repositories: List[Repository]
 
 class GithubResponse(BaseModel):

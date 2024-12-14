@@ -6,8 +6,8 @@ import requests
 import os
 import json
 from dotenv import load_dotenv
-from models.linkedin import LinkedinProfile
-from models.github import GithubResponse
+from models.linkedin import *
+from models.github import *
 import calendar
 
 load_dotenv()
@@ -122,6 +122,12 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
         updated_content = updated_content.replace("<CERTIFICATIONS>", certification_entries)
         updated_content = updated_content.replace("<GITHUB_LANGS>", github_languages)
         updated_content = updated_content.replace("<SPEAKS>", speaks_entries)
+        updated_content = updated_content.replace("<NAME>", linkedin_data.firstName + " " + linkedin_data.lastName)
+        updated_content = updated_content.replace("<LOCATION>", data.viewer.location if data.viewer.location else "")
+        updated_content = updated_content.replace("<EMAIL>", data.viewer.email if data.viewer.email else "")
+        updated_content = updated_content.replace("<LINKEDIN>", f"linkedin.com/in/{linkedin_data.username}" if linkedin_data.username else "")
+        website_url = data.viewer.websiteUrl if data.viewer.websiteUrl else ""
+        updated_content = updated_content.replace("<URL>", website_url.replace("https://", "").replace("http://", ""))
         updated_content = updated_content.replace("<SUMMARY>", cleanData(linkedin_data.summary))
 
         with open(OUTPUT_FILE, "w") as output_file:
@@ -136,6 +142,9 @@ query = """
   viewer {
     login
     name
+    location
+    websiteUrl
+    email
     repositories(first: 100, orderBy: {field: STARGAZERS, direction: DESC}) {
       nodes {
         name

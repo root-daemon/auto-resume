@@ -79,6 +79,7 @@ class LinkedinProfile(BaseModel):
     urn: str
     firstName: str
     lastName: str
+    username: str
     summary: str
     headline: str
     isOpenToWork: Optional[bool] = None
