@@ -55,7 +55,7 @@ This project is designed to automatically update a LaTeX resume template with da
 
     This will fetch the data from GitHub and LinkedIn, update the LaTeX template, and generate the updated resume.
 
-> [!INFO]
+> [!TIP]
 > If you set LOCAL="True" in `.env` file, it generates two json files of your data, this is to cache data and prevent excessive API calls
 
 ## Notes
