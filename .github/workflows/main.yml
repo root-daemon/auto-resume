@@ -16,17 +16,6 @@ jobs:
       with: 
         token: ${{ secrets.PUSH_TOKEN }}
     
-    - name: Validate Push Permissions
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        touch .permission_check
-        git add .permission_check
-        git commit -m 'Permission check'
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
-
     # Step 2: Set up Python
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -47,12 +36,32 @@ jobs:
         LINKEDIN_PROFILE_URL: ${{ secrets.LINKEDIN_PROFILE_URL }}
       run: python updater.py
 
-    # Step 5: Compile LaTeX to PDF using Docker
+    # Step 5: Cache Docker image
+    - name: Cache Docker image
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.docker-cache
+        key: ${{ runner.os }}-docker-${{ hashFiles('Dockerfile') }}
+        restore-keys: |
+          ${{ runner.os }}-docker-
+
+    # Step 6: Load Docker image from cache
+    - name: Load Docker image from cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p /tmp/.docker-cache
+        docker save danteev/texlive | gzip > /tmp/.docker-cache/texlive.tar.gz
+
+    # Step 7: Compile LaTeX to PDF using Docker
     - name: Run pdflatex in Docker
       run: |
+        if [ -f /tmp/.docker-cache/texlive.tar.gz ]; then
+          gunzip -c /tmp/.docker-cache/texlive.tar.gz | docker load
+        fi
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace danteev/texlive pdflatex resume.tex
 
-    # Step 6: Commit and Push Changes
+    # Step 8: Commit and Push Changes
     - name: Commit and Push Changes
       run: |
         git config --global user.name 'github-actions[bot]'
@@ -63,7 +72,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}
 
-    # Step 7: Upload PDF and LaTeX files
+    # Step 9: Upload PDF and LaTeX files
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
       with:
