@@ -28,7 +28,6 @@ local = os.getenv("LOCAL")
 def cleanData(data: str) -> str:
     data = re.sub(r'[^\x00-\x7F]+', '', data)
     data = data.replace('\u0000', '')
-    data = data.replace('&', r'\&')
     return data
 
 def fetch_github_data(query: str) -> GithubResponse:
@@ -43,7 +42,6 @@ def fetch_github_data(query: str) -> GithubResponse:
         response = requests.post(GITHUB_API_URL, json={"query": query}, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            print("GH", data)
             data = data["data"]
             if local : 
                 with open(GITHUB_DATA_FILE, "w") as file:
@@ -66,7 +64,6 @@ def fetch_linkedin_data() -> LinkedinProfile:
         response = requests.get(LINKEDIN_API_URL, headers=headers, params=params)
         if response.status_code == 200:
             data = response.json()
-            print("LK", data)
             if local : 
                 with open(LINKEDIN_DATA_FILE, "w") as file:
                     json.dump(data, file)
