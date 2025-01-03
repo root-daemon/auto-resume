@@ -28,7 +28,7 @@ local = os.getenv("LOCAL")
 def cleanData(data: str) -> str:
     data = re.sub(r'[^\x00-\x7F]+', '', data)
     data = data.replace('\u0000', '')
-    data = data.replace('&', '\&')
+    data = data.replace('&', r'\&')
     return data
 
 def fetch_github_data(query: str) -> GithubResponse:
