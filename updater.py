@@ -42,9 +42,12 @@ def fetch_github_data(query: str) -> GithubResponse:
         }
         response = requests.post(GITHUB_API_URL, json={"query": query}, headers=headers)
         if response.status_code == 200:
-            data = response.json()["data"]
-            with open(GITHUB_DATA_FILE, "w") as file:
-                json.dump(data, file)
+            data = response.json()
+            print("GH", data)
+            data = data["data"]
+            if local : 
+                with open(GITHUB_DATA_FILE, "w") as file:
+                    json.dump(data, file)
         else:
             raise Exception(f"Github query failed: {response.status_code}: {response.text}")
     return GithubResponse.parse_obj(data)
@@ -53,6 +56,7 @@ def fetch_linkedin_data() -> LinkedinProfile:
     if local and os.path.exists(LINKEDIN_DATA_FILE):
         with open(LINKEDIN_DATA_FILE, "r") as file:
             data = json.load(file)
+            
     else:
         headers = {
             "x-rapidapi-key": LINKEDIN_API_KEY,
@@ -62,8 +66,10 @@ def fetch_linkedin_data() -> LinkedinProfile:
         response = requests.get(LINKEDIN_API_URL, headers=headers, params=params)
         if response.status_code == 200:
             data = response.json()
-            with open(LINKEDIN_DATA_FILE, "w") as file:
-                json.dump(data, file)
+            print("LK", data)
+            if local : 
+                with open(LINKEDIN_DATA_FILE, "w") as file:
+                    json.dump(data, file)
         else:
             raise Exception(f"LinkedIn fetch failed: {response.status_code}: {response.text}")
     return LinkedinProfile.parse_obj(data)
