@@ -20,20 +20,19 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     # Step 3: Install dependencies
     - name: Install Dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install python-dotenv requests pydantic
+        pip install -r requirements.txt
 
     # Step 4: Run the updater script
     - name: Run Updater Script
       env:
         TOKEN: ${{ secrets.TOKEN }}
         LINKEDIN_API_KEY: ${{ secrets.LINKEDIN_API_KEY }}
-        LINKEDIN_PROFILE_URL: ${{ secrets.LINKEDIN_PROFILE_URL }}
+        LINKEDIN_PROFILE_URL: https://www.linkedin.com/in/rahul-marban
       run: python updater.py
 
     # Step 5: Cache Docker image
@@ -70,8 +69,8 @@ jobs:
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add resume.tex resume.pdf
-        git commit -m 'Updated resume'
+        git add .
+        git commit -m '[AUTO]: Updated resume'
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.PUSH_TOKEN }}

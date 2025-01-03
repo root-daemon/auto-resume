@@ -28,6 +28,7 @@ local = os.getenv("LOCAL")
 def cleanData(data: str) -> str:
     data = re.sub(r'[^\x00-\x7F]+', '', data)
     data = data.replace('\u0000', '')
+    data = data.replace('&', '\&')
     return data
 
 def fetch_github_data(query: str) -> GithubResponse:
@@ -74,11 +75,10 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
 
         repositories = data.viewer.repositories
         repo_entries = "".join([
-            f"\\item \\textbf{{\\href{{{repo.url}}}{{{repo.name}}}}}\n"
+            f"\\item \\textbf{{\\href{{{repo.url}}}{{{repo.name}}}}} | \\textbf{{{repo.stargazerCount}}} stars\n"
             f"\n{cleanData(next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').split('- ')[0])}\n"
             f"\\begin{{itemize}}\n"
             + "".join([f"\\item {cleanData(point.strip())}\n" for point in next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').replace("%", "\\%").split('- ')[1:]]) +
-            f"\\item \\textbf{{Stars:}} {repo.stargazerCount}\n"
             f"\\end{{itemize}}\n"
             for repo in repositories[:3]
         ])
@@ -109,12 +109,12 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
             for exp in experiences
         ])
 
-        certification_entries = "".join([
-            f"\\item {cleanData(cert.name)}\n" for cert in certifications
+        certification_entries = ", ".join([
+            f"{cleanData(cert.name)}" for cert in certifications
         ])
         
-        speaks_entries = "".join([
-            f"\\item {cleanData(speak.name)} ({cleanData(speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native'))})\n" for speak in speaks
+        speaks_entries = ", ".join([
+            f"{cleanData(speak.name)} ({cleanData(speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native'))})" for speak in speaks
         ])
 
         updated_content = template_content.replace("<REPOSITORIES>", repo_entries)
@@ -136,6 +136,9 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
         print(f"LaTeX file updated: {OUTPUT_FILE}")
     except Exception as e:
         print(f"Error updating LaTeX template: {e}")
+        raise e
+
+
 
 query = """
 {
@@ -168,3 +171,4 @@ if __name__ == "__main__":
         update_latex_template(github_data, linkedin_data)
     except Exception as e:
         print("Error:", e)
+        exit(1)
