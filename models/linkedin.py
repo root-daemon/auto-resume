@@ -70,11 +70,49 @@ class Project(BaseModel):
     end: Optional[LinkedinDateInfo] = None
 
 class LinkedinProject(BaseModel):
-    total: int
-    items: Optional[List[Project]] = None
-
+    total: Optional[int] = 0  # Make total optional with default value
+    items: Optional[List[Project]] = []  # Default to empty list
 
 class LinkedinProfile(BaseModel):
+    id: int
+    urn: str
+    firstName: str
+    lastName: str
+    username: str
+    summary: str
+    headline: str
+    isOpenToWork: Optional[bool] = None
+    isHiring: Optional[bool] = None
+    languages: List[Language] = []  # Add default empty list
+    skills: List[Skill] = []  # Add default empty list
+    position: List[Position] = []  # Add default empty list
+    certifications: List[Certification] = []  # Add default empty list
+    projects: Optional[LinkedinProject] = None  # Make projects entirely optional
+
+    @classmethod
+    def parse_obj(cls, obj: dict):
+        # Add defensive programming for missing sections
+        obj_copy = obj.copy()  # Create a copy to avoid modifying the original
+        
+        # Handle missing or None sections with empty lists
+        obj_copy['languages'] = [Language(**lang) for lang in obj_copy.get('languages', [])] if obj_copy.get('languages') else []
+        obj_copy['skills'] = [Skill(**skill) for skill in obj_copy.get('skills', [])] if obj_copy.get('skills') else []
+        obj_copy['position'] = [Position(**pos) for pos in obj_copy.get('position', [])] if obj_copy.get('position') else []
+        obj_copy['certifications'] = [Certification(**cert) for cert in obj_copy.get('certifications', [])] if obj_copy.get('certifications') else []
+        
+        # Handle projects section
+        projects_data = obj_copy.get('projects', {})
+        if projects_data and isinstance(projects_data, dict):
+            # If projects exist and is a dict, parse it
+            obj_copy['projects'] = LinkedinProject(
+                total=projects_data.get('total', 0),
+                items=[Project(**proj) for proj in projects_data.get('items', [])] if projects_data.get('items') else []
+            )
+        else:
+            # If no projects or invalid format, set to None
+            obj_copy['projects'] = None
+            
+        return super().parse_obj(obj_copy)
     id: int
     urn: str
     firstName: str

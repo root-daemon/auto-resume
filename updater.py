@@ -1,6 +1,3 @@
-# Generates a LaTeX resume from a template file and data fetched from GitHub and LinkedIn APIs
-# The generated resume is saved to a file named resume.tex
-
 import re
 import requests
 import os
@@ -54,6 +51,8 @@ def fetch_linkedin_data() -> LinkedinProfile:
     if local and os.path.exists(LINKEDIN_DATA_FILE):
         with open(LINKEDIN_DATA_FILE, "r") as file:
             data = json.load(file)
+            print("LinkedIn data from file:")
+            print(json.dumps(data.get('projects', {}), indent=2))  # Debug projects specifically
             
     else:
         headers = {
@@ -64,24 +63,45 @@ def fetch_linkedin_data() -> LinkedinProfile:
         response = requests.get(LINKEDIN_API_URL, headers=headers, params=params)
         if response.status_code == 200:
             data = response.json()
-            if local : 
+            print("LinkedIn API response:")
+            print(json.dumps(data.get('projects', {}), indent=2))  # Debug projects
+            if local:
                 with open(LINKEDIN_DATA_FILE, "w") as file:
                     json.dump(data, file)
         else:
             raise Exception(f"LinkedIn fetch failed: {response.status_code}: {response.text}")
+    
+    print("\nAttempting to parse with Pydantic:")
+    print("Projects structure:", type(data.get('projects')), data.get('projects'))
+    
     return LinkedinProfile.parse_obj(data)
-
 def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) -> None:
     try:
         with open(TEMPLATE_FILE, "r") as template_file:
             template_content = template_file.read()
 
         repositories = data.viewer.repositories
+        
+        def get_project_description(repo_name: str) -> str:
+            if not hasattr(linkedin_data, 'projects') or not linkedin_data.projects or not linkedin_data.projects.items:
+                return 'No description available.'
+                
+            matching_project = next(
+                (proj for proj in linkedin_data.projects.items 
+                 if proj.title.lower() == repo_name.lower()), 
+                None
+            )
+            return matching_project.description if matching_project else 'No description available.'
+
         repo_entries = "".join([
             f"\\item \\textbf{{\\href{{{repo.url}}}{{{repo.name}}}}} | \\textbf{{{repo.stargazerCount}}} stars\n"
-            f"\n{cleanData(next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').split('- ')[0])}\n"
+            f"\n{cleanData(get_project_description(repo.name).split('- ')[0])}\n"
             f"\\begin{{itemize}}\n"
-            + "".join([f"\\item {cleanData(point.strip())}\n" for point in next((proj.description for proj in linkedin_data.projects.items if proj.title.lower() == repo.name.lower()), 'No description available.').replace("%", "\\%").split('- ')[1:]]) +
+            + "".join([
+                f"\\item {cleanData(point.strip())}\n" 
+                for point in get_project_description(repo.name).replace("%", "\\%").split('- ')[1:]
+                if point.strip()  # Only include non-empty points
+            ]) +
             f"\\end{{itemize}}\n"
             for repo in repositories[:3]
         ])
@@ -93,12 +113,15 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
 
         github_languages = ", ".join(languages) if languages else ""
 
-        experiences = linkedin_data.position
-        certifications = linkedin_data.certifications
-        speaks = linkedin_data.languages
+        experiences = getattr(linkedin_data, 'position', [])
+        certifications = getattr(linkedin_data, 'certifications', [])
+        speaks = getattr(linkedin_data, 'languages', [])
         
         def month_number_to_abbr(month_number: int) -> str:
-            return calendar.month_abbr[month_number]
+            try:
+                return calendar.month_abbr[month_number]
+            except (IndexError, TypeError):
+                return "Unknown"
 
         experience_entries = "".join([
             f"\\textbf{{{cleanData(exp.title)}}} \\hfill {month_number_to_abbr(exp.start.month)} {exp.start.year} - "
@@ -106,32 +129,36 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
             f"{cleanData(exp.companyName)} \\hfill \\textit{{{cleanData(exp.location)}}}\n"
             + (f"\n{cleanData(exp.description.split('- ')[0])}\n"
                f"\\begin{{itemize}}\n"
-               + "".join([f"\\item {cleanData(point.strip())}\n" for point in exp.description.replace("%", "\\%").split('- ')[1:]]) +
+               + "".join([f"\\item {cleanData(point.strip())}\n" 
+                         for point in exp.description.replace("%", "\\%").split('- ')[1:]
+                         if point.strip()]) +
                f"\\end{{itemize}}\n"
-               if "- " in exp.description else f"\n{cleanData(exp.description)}\n\n")
+               if exp.description and "- " in exp.description 
+               else f"\n{cleanData(exp.description or 'No description available.')}\n\n")
             for exp in experiences
         ])
 
         certification_entries = ", ".join([
             f"{cleanData(cert.name)}" for cert in certifications
-        ])
+        ]) or "None"
         
         speaks_entries = ", ".join([
-            f"{cleanData(speak.name)} ({cleanData(speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native'))})" for speak in speaks
-        ])
+            f"{cleanData(speak.name)} ({cleanData(speak.proficiency.replace('PROFESSIONAL_WORKING', 'Professional').replace('ELEMENTARY', 'Elementary').replace('NATIVE_OR_BILINGUAL', 'Native'))})" 
+            for speak in speaks
+        ]) or "None"
 
         updated_content = template_content.replace("<REPOSITORIES>", repo_entries)
         updated_content = updated_content.replace("<EXPERIENCES>", experience_entries)
         updated_content = updated_content.replace("<CERTIFICATIONS>", certification_entries)
         updated_content = updated_content.replace("<GITHUB_LANGS>", github_languages)
         updated_content = updated_content.replace("<SPEAKS>", speaks_entries)
-        updated_content = updated_content.replace("<NAME>", linkedin_data.firstName + " " + linkedin_data.lastName)
-        updated_content = updated_content.replace("<LOCATION>", data.viewer.location if data.viewer.location else "")
-        updated_content = updated_content.replace("<EMAIL>", data.viewer.email if data.viewer.email else "")
-        updated_content = updated_content.replace("<LINKEDIN>", f"linkedin.com/in/{linkedin_data.username}" if linkedin_data.username else "")
-        website_url = data.viewer.websiteUrl if data.viewer.websiteUrl else ""
+        updated_content = updated_content.replace("<NAME>", f"{getattr(linkedin_data, 'firstName', '')} {getattr(linkedin_data, 'lastName', '')}")
+        updated_content = updated_content.replace("<LOCATION>", getattr(data.viewer, 'location', '') or '')
+        updated_content = updated_content.replace("<EMAIL>", getattr(data.viewer, 'email', '') or '')
+        updated_content = updated_content.replace("<LINKEDIN>", f"linkedin.com/in/{getattr(linkedin_data, 'username', '')}" if getattr(linkedin_data, 'username', '') else '')
+        website_url = getattr(data.viewer, 'websiteUrl', '') or ''
         updated_content = updated_content.replace("<URL>", website_url.replace("https://", "").replace("http://", ""))
-        updated_content = updated_content.replace("<SUMMARY>", cleanData(linkedin_data.summary))
+        updated_content = updated_content.replace("<SUMMARY>", cleanData(getattr(linkedin_data, 'summary', '') or ''))
 
         with open(OUTPUT_FILE, "w") as output_file:
             output_file.write(cleanData(updated_content))
@@ -140,7 +167,6 @@ def update_latex_template(data: GithubResponse, linkedin_data: LinkedinProfile) 
     except Exception as e:
         print(f"Error updating LaTeX template: {e}")
         raise e
-
 
 
 query = """
